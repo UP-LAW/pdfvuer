@@ -1,40 +1,43 @@
 <template>
   <div>
-    <slot v-if="loading" name="loading"/>
+    <slot v-if="loading" name="loading" />
     <div id="viewerContainer" ref="container">
-      <div id="viewer" class="pdfViewer"/>
-      <resizeSensor :initial="true" @resize="resizeScale"/>
+      <div id="viewer" class="pdfViewer" />
+      <resizeSensor :initial="true" @resize="resizeScale" />
     </div>
   </div>
 </template>
 <script>
-  'use strict';
+  "use strict";
 
-  import { getDocument } from 'pdfjs-dist';
+  import { getDocument } from "pdfjs-dist";
   import {
     DefaultAnnotationLayerFactory,
     DefaultTextLayerFactory,
     PDFFindController,
     PDFLinkService,
     PDFPageView,
-    EventBus
-  } from 'pdfjs-dist/web/pdf_viewer.js';
-  import resizeSensor from 'vue-resize-sensor'
-  import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry'
+    EventBus,
+  } from "pdfjs-dist/web/pdf_viewer.js";
+  import resizeSensor from "./resize-sensor.vue";
+  import PdfjsWorker from "pdfjs-dist/build/pdf.worker.entry";
   function isPDFDocumentLoadingTask(obj) {
-    return typeof (obj) === 'object' && obj !== null && obj.__PDFDocumentLoadingTask === true;
+    return (
+      typeof obj === "object" &&
+      obj !== null &&
+      obj.__PDFDocumentLoadingTask === true
+    );
   }
 
   export function createLoadingTask(src, options) {
     var source;
-    if (typeof (src) === 'string')
+    if (typeof src === "string")
       source = {
-        url: src
+        url: src,
       };
-    else if (typeof (src) === 'object' && src !== null)
+    else if (typeof src === "object" && src !== null)
       source = Object.assign({}, src);
-    else
-      throw new TypeError('invalid src type');
+    else throw new TypeError("invalid src type");
 
     var loadingTask = getDocument(source).promise;
     loadingTask.__PDFDocumentLoadingTask = true; // since PDFDocumentLoadingTask is not public
@@ -51,12 +54,12 @@
   export default {
     createLoadingTask: createLoadingTask,
     components: {
-      resizeSensor
+      resizeSensor,
     },
     props: {
       src: {
         type: [String, Object, Promise],
-        default: '',
+        default: "",
       },
       page: {
         type: Number,
@@ -68,7 +71,7 @@
       },
       scale: {
         type: [Number, String],
-        default: 'page-width',
+        default: "page-width",
       },
       resize: {
         type: Boolean,
@@ -89,12 +92,12 @@
         pdf: null,
         pdfViewer: null,
         loading: true,
-      }
+      };
     },
     watch: {
       pdf: function (val) {
-        var pdfInfo = val.pdfInfo || val._pdfInfo
-        this.$emit('numpages', pdfInfo.numPages);
+        var pdfInfo = val.pdfInfo || val._pdfInfo;
+        this.$emit("numpages", pdfInfo.numPages);
       },
       page: function (val) {
         var self = this;
@@ -117,7 +120,7 @@
       var self = this;
       if (!isPDFDocumentLoadingTask(self.internalSrc)) {
         self.internalSrc = createLoadingTask(self.internalSrc);
-        self.$emit('loading', true);
+        self.$emit("loading", true);
       }
 
       var container = this.$refs.container;
@@ -126,13 +129,13 @@
       // (Optionally) enable hyperlinks within PDF files.
       self.pdfLinkService = new PDFLinkService({
         eventBus: eventBus,
-        externalLinkTarget: 2
+        externalLinkTarget: 2,
       });
 
       // (Optionally) enable find controller.
       self.pdfFindController = new PDFFindController({
         eventBus: eventBus,
-        linkService: self.pdfLinkService
+        linkService: self.pdfLinkService,
       });
 
       let annotationLayer = undefined,
@@ -149,15 +152,16 @@
         .then(function (pdfDocument) {
           // Document loaded, retrieving the page.
           self.pdf = pdfDocument;
-          return pdfDocument.getPage(self.page)
-        }).then(function (pdfPage) {
+          return pdfDocument.getPage(self.page);
+        })
+        .then(function (pdfPage) {
           // Creating the page view with default parameters.
           self.pdfViewer = new PDFPageView({
             container: container,
             id: self.page,
             scale: 1,
             defaultViewport: pdfPage.getViewport({
-              scale: 1
+              scale: 1,
             }),
             eventBus: eventBus,
             textLayerFactory: textLayer,
@@ -167,9 +171,9 @@
           self.pdfViewer.setPdfPage(pdfPage);
           // Set up a scrollPageIntoView function for our links
           var viewer = {
-            scrollPageIntoView: function(params) {
+            scrollPageIntoView: function (params) {
               // Send an event when clicking internal links so we can handle loading/scrolling to the correct page
-              self.$emit('link-clicked', params);
+              self.$emit("link-clicked", params);
             },
           };
           self.pdfLinkService.setDocument(self.pdf);
@@ -178,12 +182,13 @@
           self.drawScaled(self.scale);
 
           self.loading = false;
-          self.$emit('loading', false);
-        }).catch(err => {
-          self.$emit('error', err)
-          self.loading = false
-          self.$emit('loading', false);
+          self.$emit("loading", false);
         })
+        .catch((err) => {
+          self.$emit("error", err);
+          self.loading = false;
+          self.$emit("loading", false);
+        });
     },
     beforeDestroy() {
       var self = this;
@@ -209,18 +214,21 @@
       },
       drawScaled: function (newScale) {
         if (this.pdfViewer) {
-          if (newScale === 'page-width') {
+          if (newScale === "page-width") {
             newScale = this.calculateScale();
             this.$emit("update:scale", newScale);
-          }
-          else if (newScale === 'page-height') {
+          } else if (newScale === "page-height") {
             newScale = this.calculateScaleHeight();
             this.$emit("update:scale", newScale);
           }
           this.pdfViewer.update(newScale, this.rotate);
           // The SimpleLinkService from the DefaultAnnotationLayerFactory doesn't do anything with links so override with our LinkService after it is created
-          if(this.annotation) {
-            this.pdfViewer.annotationLayer = this.pdfViewer.annotationLayerFactory.createAnnotationLayerBuilder(this.pdfViewer.div, this.pdfViewer.pdfPage);
+          if (this.annotation) {
+            this.pdfViewer.annotationLayer =
+              this.pdfViewer.annotationLayerFactory.createAnnotationLayerBuilder(
+                this.pdfViewer.div,
+                this.pdfViewer.pdfPage
+              );
             this.pdfViewer.annotationLayer.linkService = this.pdfLinkService;
           }
           this.pdfViewer.draw();
@@ -229,15 +237,15 @@
             this.pdfViewer.textLayer.findController = this.pdfFindController;
           }
           this.loading = false;
-          this.$emit('loading', false);
+          this.$emit("loading", false);
         }
       },
       resizeScale: function () {
         if (this.resize) {
-          this.drawScaled('page-width');
+          this.drawScaled("page-width");
         }
-      }
-    }
-  }
+      },
+    },
+  };
 </script>
 <style src="pdfjs-dist/web/pdf_viewer.css"></style>
